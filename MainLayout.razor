@@ -1,0 +1,123 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Nav
+@using AppraisalAppV1.Services
+@implements IDisposable
+
+<style>
+    /* Top nav styling */
+    .top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #2c3e50;
+        padding: 12px 24px;
+        color: white;
+    }
+
+    .app-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .center-nav {
+        display: flex;
+        gap: 20px;
+    }
+
+    .top-nav-link {
+        color: white;
+        text-decoration: none;
+        font-weight: 500;
+        padding: 6px 12px;
+        border-radius: 6px;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+        /* ✅ Hover effect with white tone */
+        .top-nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.2); /* light white overlay */
+            color: #f1f1f1; /* slightly softer white text */
+        }
+
+        /* Active link styling */
+        .top-nav-link.active {
+            background-color: rgba(255, 255, 255, 0.3);
+            font-weight: bold;
+        }
+
+    .top-link {
+        color: white;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.3s ease;
+    }
+
+        .top-link:hover {
+            color: #ddd;
+        }
+
+    .content {
+        padding: 20px;
+    }
+</style>
+
+<div class="page">
+    <div class="main">
+        <div class="top-row">
+            <div class="top-left">
+                <span class="app-title">
+                    @if (SessionState.IsLoggedIn && SessionState.CurrentUser is not null)
+                    {
+                        <span>Hello, @SessionState.CurrentUser.FullName</span>
+                    }
+                    else
+                    {
+                        <span>Appraisal App</span>
+                    }
+                </span>
+            </div>
+            <div class="center-nav">
+                @if (SessionState.IsLoggedIn)
+                {
+                    <NavLink class="top-nav-link" href="create-request" Match="NavLinkMatch.All">Create Appraisal</NavLink>
+                    <NavLink class="top-nav-link" href="all-requests">Status</NavLink>
+                    <NavLink class="top-nav-link" href="my-actions">My Actions</NavLink>
+                }
+            </div>
+            <div class="top-right">
+                @if (SessionState.IsLoggedIn)
+                {
+                    <a href="#" class="top-link" @onclick="HandleLogout">Logout</a>
+                }
+                else
+                {
+                    <a href="/login" class="top-link">Login</a>
+                }
+            </div>
+        </div>
+        <article class="content px-4">
+            @Body
+        </article>
+    </div>
+</div>
+
+@code {
+    [Inject]
+    private SessionState SessionState { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        SessionState.OnChange += StateHasChanged;
+    }
+
+    private void HandleLogout()
+    {
+        SessionState.Logout();
+        Nav.NavigateTo("/", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        SessionState.OnChange -= StateHasChanged;
+    }
+}

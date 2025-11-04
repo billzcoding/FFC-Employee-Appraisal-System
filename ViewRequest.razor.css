@@ -1,0 +1,14 @@
+﻿/* Custom styles for the collapsible card headers */
+.card-header .oi {
+    transition: transform 0.3s ease-in-out;
+    color: white;
+}
+
+/* Rotate the icon when the collapse is expanded */
+.card-header[aria-expanded="true"] .oi-chevron-bottom {
+    transform: rotate(180deg);
+}
+
+.card-header[aria-expanded="true"] .oi-chevron-top {
+    transform: rotate(0deg);
+}

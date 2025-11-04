@@ -1,0 +1,1063 @@
+﻿@page "/create-request"
+
+@attribute [Authorize]
+
+@rendermode InteractiveServer
+
+
+@using AppraisalAppV1.Models
+@using AppraisalAppV1.Data
+@using Microsoft.EntityFrameworkCore
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.AspNetCore.Components.Web
+@using System.IO
+@using Microsoft.AspNetCore.Hosting
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
+@inject IDbContextFactory<AppraisalContext> DbFactory
+@inject NavigationManager Nav
+@inject IJSRuntime JsRuntime
+@inject IWebHostEnvironment env
+@inject AuthenticationStateProvider AuthStateProvider
+
+
+@implements IDisposable
+
+
+<EditForm Model="createRequest" OnValidSubmit="HandleSubmit" FormName="appraisalForm">
+    <DataAnnotationsValidator />
+    @if (isLoading)
+    {
+        <p>Loading appraisee data...</p>
+    }
+    else
+    {
+        <div class="app-container p-4">
+            <img src="FFC Logo Png File.png" alt="Appraisal App Logo" class="ffc-logo" />
+            <div class="ffc-branding">
+                <div class="ffc-company-name">
+                    Fauji Fertilizers Company
+                </div>
+                <div class="ffc-tagline">
+                    Partners in Prosperity
+                </div>
+            </div>
+            <div class="ffc-divider"></div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" @onclick="@(() => ToggleSection("appraisal"))" style="cursor: pointer;">
+                    <h5 class="mb-0">
+                        Appraisal Details
+                        <span class="tooltip-icon">
+                            <i class="bi bi-question-circle"></i>
+                            <span class="tooltip-text">Fill in the Appraisee number of the Employee.</span>
+                        </span>
+                    </h5>
+                    <span class="bi bi-chevron-down toggle-icon @(isAppraisalSectionVisible ? "rotate-down" : "")"></span>
+                </div>
+                @if (isAppraisalSectionVisible)
+                {
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="appraiseeNumber">Appraisee Number</label>
+                                    <MudAutocomplete T="string" Label="Appraisee Number"
+                                                     @bind-Value="SelectedAppraiseeNumber"
+                                                     SearchFunc="@SearchAppraiseeNumbers"
+                                                     Placeholder="Type to search..."
+                                                     Variant="Variant.Outlined" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" @onclick="@(() => ToggleSection("employee"))" style="cursor: pointer;">
+                    <h5 class="mb-0">
+                        Employee Details
+                        <span class="tooltip-icon">
+                            <i class="bi bi-question-circle"></i>
+                            <span class="tooltip-text">These are the Details of the selected employee.</span>
+                        </span>
+                    </h5>
+                    <span class="bi bi-chevron-down toggle-icon @(isEmployeeSectionVisible ? "rotate-down" : "")"></span>
+                </div>
+                @if (isEmployeeSectionVisible)
+                {
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="requestDate">Request Date</label>
+                                    <input type="text" class="form-control" value="@createRequest.RequestDate" disabled />
+                                </div>
+                                <div class="form-group">
+                                    <label for="employeeName">Employee Name</label>
+                                    <input type="text" class="form-control" value="@createRequest.Name" disabled />
+                                </div>
+                                <div class="form-group">
+                                    <label for="designation">Designation</label>
+                                    <input type="text" class="form-control" value="@createRequest.Designation" disabled />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="appraiseeNumberDetails">Appraisee Number</label>
+                                    <input type="text" class="form-control" value="@createRequest.AppraiseeNumber" disabled />
+                                </div>
+                                <div class="form-group">
+                                    <label for="department">Department</label>
+                                    <input type="text" class="form-control" value="@createRequest.Department" disabled />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" @onclick="@(() => ToggleSection("appraisalperiod"))" style="cursor: pointer;">
+                    <h5 class="mb-0">
+                        Appraisal Period
+                        <span class="tooltip-icon">
+                            <i class="bi bi-question-circle"></i>
+                            <span class="tooltip-text">Please Select The Appropriate Appraisal Period.</span>
+                        </span>
+                    </h5>
+                    <span class="bi bi-chevron-down toggle-icon @(isAppraisalPeriodVisible ? "rotate-down" : "")"></span>
+                </div>
+                @if (isAppraisalPeriodVisible)
+                {
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="appraisalYear">Appraisal Year</label>
+                                    <InputSelect @bind-Value="createRequest.AppraisalYear" class="form-control" @onchange="OnAppraisalYearChanged" tabindex="2">
+                                        <option value="">-- Select Year --</option>
+                                        @foreach (var year in appraisalYears)
+                                        {
+                                            <option value="@year">@year</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="periodCoveredFrom">Period Covered From</label>
+                                    <input type="text" class="form-control" value="@createRequest.PeriodCoveredFrom" disabled />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" @onclick="ToggleSkillsOverallSection" style="cursor: pointer;">
+                    <h5 class="mb-0">
+                        <i class="bi fill"></i> Skills and Overall Rating
+                        <span class="tooltip-icon">
+                        </span>
+                    </h5>
+                    <span class="bi bi-chevron-down toggle-icon @(isSkillsOverallVisible ? "rotate-down" : "")"></span>
+                </div>
+                @if (isSkillsOverallVisible)
+                {
+                    <div class="skills-overall-body">
+
+                        <div class="skills-grid">
+
+                            <div class="sub-card">
+                                <div class="sub-card-header">Professional Skills</div>
+                                <div class="sub-card-body">
+                                    <div class="inner-skills-grid">
+                                        <div class="form-group">
+                                            <label>Job Knowledge <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="professionalSkills.JobKnowledge" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => professionalSkills.JobKnowledge)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Organizing Work <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="professionalSkills.OrganizingWork" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => professionalSkills.OrganizingWork)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Quality of Work <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="professionalSkills.QualityOfWork" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => professionalSkills.QualityOfWork)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Quantity of Work <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="professionalSkills.QuantityOfWork" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => professionalSkills.QuantityOfWork)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Creativity <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="professionalSkills.Creativity" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => professionalSkills.Creativity)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Analytical Ability <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="professionalSkills.AnalyticalAbility" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => professionalSkills.AnalyticalAbility)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Initiative <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="professionalSkills.Initiative" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => professionalSkills.Initiative)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Dependability <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="professionalSkills.Dependability" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => professionalSkills.Dependability)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Self Development <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="professionalSkills.SelfDevelopment" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => professionalSkills.SelfDevelopment)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Average Score (P)</label>
+                                            <input value="@professionalSkills.AverageScore" class="form-control" disabled />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sub-card">
+                                <div class="sub-card-header">Human Skills</div>
+                                <div class="sub-card-body">
+                                    <div class="inner-skills-grid">
+                                        <div class="form-group">
+                                            <label>Relationship (Senior) <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="humanSkills.RelationshipSenior" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => humanSkills.RelationshipSenior)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Relationship (Junior) <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="humanSkills.RelationshipJunior" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => humanSkills.RelationshipJunior)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Working under Pressure <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="humanSkills.WorkingUnderPressure" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => humanSkills.WorkingUnderPressure)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Safety Consciousness <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="humanSkills.SafetyConsciousness" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => humanSkills.SafetyConsciousness)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Communication <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="humanSkills.Communication" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => humanSkills.Communication)" />
+                                        </div>
+                                        <div></div>
+                                        <div></div>
+                                        <div></div>
+                                        <div></div>
+                                        <div class="form-group">
+                                            <label>Average Score (H)</label>
+                                            <input value="@humanSkills.AverageScore" class="form-control" disabled />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sub-card">
+                                <div class="sub-card-header">Conceptual Skills</div>
+                                <div class="sub-card-body">
+                                    <div class="inner-skills-grid">
+                                        <div class="form-group">
+                                            <label>Leadership <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="conceptualSkills.Leadership" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => conceptualSkills.Leadership)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Company Philosophy <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="conceptualSkills.CompanyPhilosophy" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => conceptualSkills.CompanyPhilosophy)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>New Ideas <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="conceptualSkills.NewIdeas" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => conceptualSkills.NewIdeas)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Problem Analysis <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="conceptualSkills.ProblemAnalysis" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => conceptualSkills.ProblemAnalysis)" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Judgement <span style="color: red;">*</span></label>
+                                            <InputNumber TValue="double?" @bind-Value="conceptualSkills.Judgement" class="form-control" min="0" max="5" step="0.01" />
+                                            <ValidationMessage For="@(() => conceptualSkills.Judgement)" />
+                                        </div>
+                                        <div></div>
+                                        <div></div>
+                                        <div></div>
+                                        <div></div>
+                                        <div class="form-group">
+                                            <label>Average Score (C)</label>
+                                            <input value="@conceptualSkills.AverageScore" class="form-control" disabled />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overall-rating-container">
+                            <div class="sub-card">
+                                <div class="sub-card-header">Overall Rating</div>
+                                <div class="sub-card-body">
+                                    <div class="rating-fields-container">
+                                        <div class="form-group">
+                                            <label>Cumulative Weightage</label>
+                                            <input value="@overallRating.CumulativeWeightage" class="form-control" disabled />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Ranking</label>
+                                            <input value="@overallRating.Ranking" class="form-control" disabled />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                }
+            </div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" @onclick="@(() => ToggleSection("trainingAssignment"))" style="cursor: pointer;">
+                    <h5 class="mb-0">Main Training Assignment</h5>
+                    <span class="bi bi-chevron-down toggle-icon @(isTrainingAssignmentVisible ? "rotate-down" : "")"></span>
+                </div>
+                @if (isTrainingAssignmentVisible)
+                {
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <InputTextArea @bind-Value="createRequest.MainTrainingAssignment" class="form-control" rows="4" tabindex="22" />
+                        </div>
+                    </div>
+                }
+            </div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" @onclick="@(() => ToggleSection("trainingPlanned"))" style="cursor: pointer;">
+                    <h5 class="mb-0">Training Planned</h5>
+                    <span class="bi bi-chevron-down toggle-icon @(isTrainingPlannedVisible ? "rotate-down" : "")"></span>
+                </div>
+                @if (isTrainingPlannedVisible)
+                {
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <InputTextArea @bind-Value="createRequest.TrainingPlanned" class="form-control" rows="4" tabindex="23" />
+                        </div>
+                    </div>
+                }
+            </div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" @onclick="@(() => ToggleSection("comments"))" style="cursor: pointer;">
+                    <h5 class="mb-0">Comments</h5>
+                    <span class="bi bi-chevron-down toggle-icon @(isCommentsVisible ? "rotate-down" : "")"></span>
+                </div>
+                @if (isCommentsVisible)
+                {
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <InputTextArea @bind-Value="createRequest.Comments" class="form-control" rows="4" tabindex="24" />
+                        </div>
+                    </div>
+                }
+            </div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" @onclick="@(() => ToggleSection("attachments"))" style="cursor: pointer;">
+                    <h5 class="mb-0">Attachments</h5>
+                    <span class="bi bi-chevron-down toggle-icon @(isAttachmentsVisible ? "rotate-down" : "")"></span>
+                </div>
+                @if (isAttachmentsVisible)
+                {
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="fileUpload">Attach Files</label>
+                            <InputFile OnChange="HandleFileSelection" multiple />
+                        </div>
+                        @if (selectedFiles.Any())
+                        {
+                            <ul class="list-unstyled mt-3">
+                                @foreach (var file in selectedFiles)
+                                {
+                                    <li>
+                                        @file.Name (@((file.Size / 1024).ToString("F2")) KB)
+                                        <button type="button" class="btn btn-sm btn-danger ms-2" @onclick="() => RemoveFile(file)">Remove</button>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+            </div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" @onclick="@(() => ToggleSection("approvals"))" style="cursor: pointer;">
+                    <h5 class="mb-0">Approval Workflow</h5>
+                    <span class="bi bi-chevron-down toggle-icon @(isApprovalsVisible ? "rotate-down" : "")"></span>
+                </div>
+                @if (isApprovalsVisible)
+                {
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>S.No.</th>
+                                    <th>User</th>
+                                    <th>Task Assigned</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var approval in approvalsList)
+                                {
+                                    <tr>
+                                        <td>@(approvalsList.IndexOf(approval) + 1)</td>
+                                        <td>
+                                            <InputSelect @bind-Value="approval.UserId" class="form-control">
+                                                <option value="">-- Select User --</option>
+                                                @foreach (var user in users)
+                                                {
+                                                    <option value="@user.Id">@user.FullName</option>
+                                                }
+                                            </InputSelect>
+                                        </td>
+                                        <td>
+                                            <InputSelect @bind-Value="approval.TaskAssigned" class="form-control">
+                                                <option>Review</option>
+                                                <option>Approve</option>
+                                            </InputSelect>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-danger btn-sm" @onclick="() => RemoveApprovalRow(approval)">Remove</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        <button type="button" class="btn btn-primary" @onclick="AddApprovalRow">Add User</button>
+                    </div>
+                }
+            </div>
+
+
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary mt-3">Submit</button>
+            </div>
+        </div>
+    }
+</EditForm>
+
+@code {
+    private CreateRequestModel createRequest = new();
+    private List<int> appraisalYears = new();
+    private CancellationTokenSource cts = new();
+    private ProfessionalSkills professionalSkills = new();
+    private HumanSkills humanSkills = new();
+    private ConceptualSkills conceptualSkills = new();
+    private OverallRating overallRating = new(new ProfessionalSkills(), new HumanSkills(), new ConceptualSkills());
+
+
+    private ClaimsPrincipal? CurrentUser;
+    private List<string> appraiseeNumbers = new();
+
+
+    private bool isAppraisalSectionVisible = true;
+    private bool isEmployeeSectionVisible = true;
+    private bool isAppraisalPeriodVisible = true;
+    private bool isProfessionalSkillsVisible = true;
+    private bool isHumanSkillsVisible = true;
+    private bool isConceptualSkillsVisible = true;
+    private bool isOverallRatingVisible = true;
+    private bool isTrainingAssignmentVisible = true;
+    private bool isTrainingPlannedVisible = true;
+    private bool isCommentsVisible = true;
+    private bool isAttachmentsVisible = true;
+    private bool isApprovalsVisible = true;
+    private bool isSkillsOverallVisible = true;
+    private bool isLoading = true; // Add this field
+
+    private List<User> users = new();
+    private List<AppraisalAssignmentFormModel> approvalsList = new();
+
+
+    private List<IBrowserFile> selectedFiles = new List<IBrowserFile>();
+    private const long maxFileSize = 1024 * 1024 * 10;
+    private const int maxFiles = 5;
+
+    private string? selectedAppraiseeNumber;
+    public string? SelectedAppraiseeNumber
+    {
+        get => selectedAppraiseeNumber;
+        set
+        {
+            selectedAppraiseeNumber = value;
+            createRequest.AppraiseeNumber = value;
+            ApplyEmployeeData(value);
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        createRequest.RequestDate = DateTime.Now.ToShortDateString();
+        GenerateAppraisalYears();
+        overallRating = new OverallRating(professionalSkills, humanSkills, conceptualSkills);
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        CurrentUser = authState.User;
+        isLoading = true;
+
+        await LoadAllAppraiseeData();
+
+        AddDefaultApprovalWorkflow();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+
+    private void ApplyEmployeeData(string? appraiseeNumber)
+    {
+        Console.WriteLine($"Applying employee data for: {appraiseeNumber}");
+        Console.WriteLine($"Total users: {users.Count}");
+
+        // Log all users and their appraisee numbers for debugging
+        foreach (var user in users)
+        {
+            Console.WriteLine($"User: {user.Username}, Appraisee: {user.AppraiseeNumber}, HasEmployee: {user.Employee != null}");
+            if (user.Employee != null)
+            {
+                Console.WriteLine($"  Employee: {user.Employee.Name}, Dept: {user.Employee.Department}");
+            }
+        }
+
+        if (string.IsNullOrEmpty(appraiseeNumber))
+        {
+            Console.WriteLine("Appraisee number is null or empty");
+            ClearEmployeeDetails();
+            return;
+        }
+
+        var userWithEmployee = users.FirstOrDefault(u => u.AppraiseeNumber == appraiseeNumber);
+        Console.WriteLine($"Found user: {userWithEmployee != null}");
+
+        if (userWithEmployee?.Employee != null)
+        {
+            Console.WriteLine($"Employee found: {userWithEmployee.Employee.Name}");
+            createRequest.Name = userWithEmployee.Employee.Name;
+            createRequest.Department = userWithEmployee.Employee.Department;
+            createRequest.Designation = userWithEmployee.Employee.Designation;
+
+            Console.WriteLine($"Set name: {createRequest.Name}");
+            Console.WriteLine($"Set department: {createRequest.Department}");
+            Console.WriteLine($"Set designation: {createRequest.Designation}");
+        }
+        else
+        {
+            Console.WriteLine("Employee not found");
+            ClearEmployeeDetails();
+        }
+
+        // Force UI update
+        StateHasChanged();
+    }
+
+    private void AddDefaultApprovalWorkflow()
+    {
+        // Clear any existing items to ensure a clean start
+        approvalsList.Clear();
+
+        // Find the specific users by their full name
+        var hassan = users.FirstOrDefault(u => u.FullName == "Hassan Ali");
+        var aamir = users.FirstOrDefault(u => u.FullName == "Aamir Anjum");
+        var naeem = users.FirstOrDefault(u => u.FullName == "Naeem Iqbal");
+
+        // Add them to the approvals list in the correct order
+        if (hassan != null)
+        {
+            approvalsList.Add(new AppraisalAssignmentFormModel { UserId = hassan.Id, TaskAssigned = "Review" });
+        }
+        if (aamir != null)
+        {
+            approvalsList.Add(new AppraisalAssignmentFormModel { UserId = aamir.Id, TaskAssigned = "Review" });
+        }
+        if (naeem != null)
+        {
+            approvalsList.Add(new AppraisalAssignmentFormModel { UserId = naeem.Id, TaskAssigned = "Approve" });
+        }
+    }
+    private async Task LoadAllAppraiseeData()
+    {
+        await using var dbContext = DbFactory.CreateDbContext();
+
+        users = await dbContext.Users
+            .Include(u => u.Employee)
+            .Where(u => u.AppraiseeNumber != null)
+            .ToListAsync();
+
+        appraiseeNumbers = users.Select(u => u.AppraiseeNumber!).ToList();
+    }
+
+
+    private void AddApprovalRow()
+    {
+        approvalsList.Add(new AppraisalAssignmentFormModel());
+    }
+
+
+    private void RemoveApprovalRow(AppraisalAssignmentFormModel item)
+    {
+        approvalsList.Remove(item);
+    }
+
+
+    private void GenerateAppraisalYears()
+    {
+        int currentYear = DateTime.Now.Year;
+        for (int i = 0; i < 5; i++)
+        {
+            appraisalYears.Add(currentYear - i);
+        }
+    }
+
+
+    private void OnAppraisalYearChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int selectedYear))
+        {
+            createRequest.PeriodCoveredFrom = $"1st January {selectedYear} - 31st December {selectedYear}";
+        }
+        StateHasChanged();
+    }
+
+
+    private void OnAppraiseeNumberChanged(ChangeEventArgs e)
+    {
+        var selectedNumber = e.Value?.ToString();
+        // This method will now be the sole trigger for populating the employee details.
+        ApplyEmployeeData(selectedNumber);
+        StateHasChanged();
+    }
+
+
+    private void ToggleSection(string section)
+    {
+        if (section == "appraisal")
+        {
+            isAppraisalSectionVisible = !isAppraisalSectionVisible;
+        }
+        else if (section == "employee")
+        {
+            isEmployeeSectionVisible = !isEmployeeSectionVisible;
+        }
+        else if (section == "appraisalperiod")
+        {
+            isAppraisalPeriodVisible = !isAppraisalPeriodVisible;
+        }
+        else if (section == "professionalSkills")
+        {
+            isProfessionalSkillsVisible = !isProfessionalSkillsVisible;
+        }
+        else if (section == "humanSkills")
+        {
+            isHumanSkillsVisible = !isHumanSkillsVisible;
+        }
+        else if (section == "conceptualSkills")
+        {
+            isConceptualSkillsVisible = !isConceptualSkillsVisible;
+        }
+        else if (section == "overallRating")
+        {
+            isOverallRatingVisible = !isOverallRatingVisible;
+        }
+        else if (section == "trainingAssignment")
+        {
+            isTrainingAssignmentVisible = !isTrainingAssignmentVisible;
+        }
+        else if (section == "trainingPlanned")
+        {
+            isTrainingPlannedVisible = !isTrainingPlannedVisible;
+        }
+        else if (section == "comments")
+        {
+            isCommentsVisible = !isCommentsVisible;
+        }
+        else if (section == "attachments")
+        {
+            isAttachmentsVisible = !isAttachmentsVisible;
+        }
+        else if (section == "approvals")
+        {
+            isApprovalsVisible = !isApprovalsVisible;
+        }
+        StateHasChanged();
+    }
+
+
+    private void ToggleSkillsOverallSection()
+    {
+        isSkillsOverallVisible = !isSkillsOverallVisible;
+    }
+
+
+    private void ClearEmployeeDetails()
+    {
+        createRequest.Name = string.Empty;
+        createRequest.Department = string.Empty;
+        createRequest.Designation = string.Empty;
+        createRequest.PeriodCoveredFrom = string.Empty;
+    }
+    private async Task<IEnumerable<string>> SearchAppraiseeNumbers(string searchText, CancellationToken cancellationToken)
+    {
+        await Task.Delay(5, cancellationToken); // Simulate a network delay
+        if (string.IsNullOrEmpty(searchText))
+        {
+            return appraiseeNumbers;
+        }
+        return appraiseeNumbers.Where(x => x.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task HandleFileSelection(InputFileChangeEventArgs e)
+    {
+        if (selectedFiles.Count >= maxFiles)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"You can only upload a maximum of {maxFiles} files.");
+            return;
+        }
+        foreach (var file in e.GetMultipleFiles(maxFiles - selectedFiles.Count))
+        {
+            if (file.Size > maxFileSize)
+            {
+                await JsRuntime.InvokeVoidAsync("alert", $"File '{file.Name}' is too large. Maximum size is 10 MB.");
+                continue;
+            }
+            selectedFiles.Add(file);
+        }
+    }
+
+
+    private void RemoveFile(IBrowserFile file)
+    {
+        selectedFiles.Remove(file);
+    }
+
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrEmpty(createRequest.AppraiseeNumber) ||
+            string.IsNullOrEmpty(createRequest.Name))
+        {
+            await JsRuntime.InvokeVoidAsync("alert", "Please ensure employee details are retrieved before submitting.");
+            return;
+        }
+
+
+        if (!approvalsList.Any() || approvalsList.Any(a => a.UserId == 0))
+        {
+            await JsRuntime.InvokeVoidAsync("alert", "Please assign at least one valid user to the approval workflow.");
+            return;
+        }
+
+
+        try
+        {
+            var userEmail = CurrentUser?.Identity?.Name;
+            await using var dbContext = DbFactory.CreateDbContext();
+            var loggedInUser = await dbContext.Users.FirstOrDefaultAsync(u => u.Username == userEmail);
+
+
+            if (loggedInUser == null)
+            {
+                await JsRuntime.InvokeVoidAsync("alert", "Error: Submitting user not found.");
+                return;
+            }
+
+
+            var uploadPath = Path.Combine(env.WebRootPath, "AppraisalAttachments");
+            Directory.CreateDirectory(uploadPath);
+            var filePaths = new List<string>();
+            foreach (var file in selectedFiles)
+            {
+                var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.Name)}";
+                var filePath = Path.Combine(uploadPath, uniqueFileName);
+                await using var stream = file.OpenReadStream(maxFileSize);
+                await using var fileStream = new FileStream(filePath, FileMode.Create);
+                await stream.CopyToAsync(fileStream);
+                filePaths.Add(filePath);
+            }
+
+
+            var approvalStatus = new ApprovalStatus
+            {
+                Status = ApprovalStatusEnum.InProcess,
+                TotalStages = approvalsList.Count,
+                CurrentStage = 1,
+                CurrentActionerUserId = approvalsList.FirstOrDefault()?.UserId
+            };
+            dbContext.ApprovalStatus.Add(approvalStatus);
+            await dbContext.SaveChangesAsync();
+
+
+            var employee = await dbContext.Employees
+                .FirstOrDefaultAsync(e => e.AppraiseeNumber == createRequest.AppraiseeNumber);
+
+
+            var newAppraisal = new Appraisal
+            {
+                AppraiseeNumber = createRequest.AppraiseeNumber,
+                RequestDate = createRequest.RequestDate,
+                EmployeeName = createRequest.Name,
+                Department = createRequest.Department,
+                Designation = createRequest.Designation,
+                AppraisalYear = createRequest.AppraisalYear,
+                PeriodCoveredFrom = createRequest.PeriodCoveredFrom,
+                MainTrainingAssignment = createRequest.MainTrainingAssignment,
+                TrainingPlanned = createRequest.TrainingPlanned,
+                Comments = createRequest.Comments,
+                JobKnowledge = professionalSkills.JobKnowledge,
+                QualityOfWork = professionalSkills.QualityOfWork,
+                Creativity = professionalSkills.Creativity,
+                Initiative = professionalSkills.Initiative,
+                SelfDevelopment = professionalSkills.SelfDevelopment,
+                OrganizingWork = professionalSkills.OrganizingWork,
+                QuantityOfWork = professionalSkills.QuantityOfWork,
+                AnalyticalAbility = professionalSkills.AnalyticalAbility,
+                Dependability = professionalSkills.Dependability,
+                RelationshipSenior = humanSkills.RelationshipSenior,
+                WorkingUnderPressure = humanSkills.WorkingUnderPressure,
+                Communication = humanSkills.Communication,
+                RelationshipJunior = humanSkills.RelationshipJunior,
+                SafetyConsciousness = humanSkills.SafetyConsciousness,
+                Leadership = conceptualSkills.Leadership,
+                NewIdeas = conceptualSkills.NewIdeas,
+                Judgement = conceptualSkills.Judgement,
+                CompanyPhilosophy = conceptualSkills.CompanyPhilosophy,
+                ProblemAnalysis = conceptualSkills.ProblemAnalysis,
+                CumulativeWeightage = overallRating.CumulativeWeightage,
+                Ranking = overallRating.Ranking,
+                AttachmentFilePaths = string.Join(";", filePaths),
+                Employee = employee,
+                SubmitterId = loggedInUser.Id,
+                ApprovalStatusId = approvalStatus.Id
+            };
+
+
+            dbContext.Appraisals.Add(newAppraisal);
+            await dbContext.SaveChangesAsync();
+
+
+            foreach (var approval in approvalsList)
+            {
+                var newAssignment = new AppraisalAssignment
+                {
+                    AppraisalId = newAppraisal.Id,
+                    UserId = approval.UserId,
+                    TaskAssigned = approval.TaskAssigned
+                };
+                dbContext.AppraisalAssignments.Add(newAssignment);
+            }
+            await dbContext.SaveChangesAsync();
+
+
+            await JsRuntime.InvokeVoidAsync("alert", "Appraisal successfully created!");
+            Nav.NavigateTo("/all-requests");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during form submission: {ex.Message}");
+            await JsRuntime.InvokeVoidAsync("alert", "An error occurred while submitting the appraisal. Please try again.");
+        }
+    }
+
+
+    public void Dispose()
+    {
+        cts.Cancel();
+        cts.Dispose();
+    }
+
+
+    public class AppraisalAssignmentFormModel
+    {
+        public int UserId { get; set; }
+        public string TaskAssigned { get; set; } = "Review";
+    }
+
+    public class CreateRequestModel
+    {
+        private string? _appraiseeNumber;
+        public string? AppraiseeNumber
+        {
+            get => _appraiseeNumber;
+            set
+            {
+                _appraiseeNumber = value;
+                // You might want to trigger employee data loading here if needed
+            }
+        }
+
+        private int? _appraisalYear;
+        public int? AppraisalYear
+        {
+            get => _appraisalYear;
+            set
+            {
+                _appraisalYear = value;
+                PeriodCoveredFrom = value.HasValue
+                    ? $"1st January {value} - 31st December {value}"
+                    : string.Empty;
+            }
+        }
+
+        public string RequestDate { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public string Designation { get; set; } = string.Empty;
+        public string PeriodCoveredFrom { get; set; } = string.Empty;
+        public string MainTrainingAssignment { get; set; } = string.Empty;
+        public string TrainingPlanned { get; set; } = string.Empty;
+        public string Comments { get; set; } = string.Empty;
+    }
+
+
+    public class ProfessionalSkills
+    {
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? JobKnowledge { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? QualityOfWork { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? Creativity { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? Initiative { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? SelfDevelopment { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? OrganizingWork { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? QuantityOfWork { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? AnalyticalAbility { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? Dependability { get; set; }
+        public double AverageScore
+        {
+            get
+            {
+                var scores = new double?[] { JobKnowledge, QualityOfWork, Creativity, Initiative, SelfDevelopment, OrganizingWork, QuantityOfWork, AnalyticalAbility, Dependability };
+                var validScores = scores.Where(s => s.HasValue).Select(s => s.Value).ToList();
+                return validScores.Any() ? Math.Round(validScores.Average(), 2) : 0;
+            }
+        }
+    }
+
+
+    public class HumanSkills
+    {
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? RelationshipSenior { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? WorkingUnderPressure { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? Communication { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? RelationshipJunior { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? SafetyConsciousness { get; set; }
+        public double AverageScore
+        {
+            get
+            {
+                var scores = new double?[] { RelationshipSenior, WorkingUnderPressure, Communication, RelationshipJunior, SafetyConsciousness };
+                var validScores = scores.Where(s => s.HasValue).Select(s => s.Value).ToList();
+                return validScores.Any() ? Math.Round(validScores.Average(), 2) : 0;
+            }
+        }
+    }
+
+
+    public class ConceptualSkills
+    {
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? Leadership { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? NewIdeas { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? Judgement { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? CompanyPhilosophy { get; set; }
+        [Required, Range(0, 5, ErrorMessage = "Value must be between 0 and 5.")]
+        public double? ProblemAnalysis { get; set; }
+        public double AverageScore
+        {
+            get
+            {
+                var scores = new double?[] { Leadership, NewIdeas, Judgement, CompanyPhilosophy, ProblemAnalysis };
+                var validScores = scores.Where(s => s.HasValue).Select(s => s.Value).ToList();
+                return validScores.Any() ? Math.Round(validScores.Average(), 2) : 0;
+            }
+        }
+    }
+
+
+    public class OverallRating
+    {
+        private readonly ProfessionalSkills _professionalSkills;
+        private readonly HumanSkills _humanSkills;
+        private readonly ConceptualSkills _conceptualSkills;
+        public OverallRating(ProfessionalSkills professionalSkills, HumanSkills humanSkills, ConceptualSkills conceptualSkills)
+        {
+            _professionalSkills = professionalSkills;
+            _humanSkills = humanSkills;
+            _conceptualSkills = conceptualSkills;
+        }
+        public double CumulativeWeightage
+        {
+            get
+            {
+                var weightedScore = (_professionalSkills.AverageScore * 0.50) + (_humanSkills.AverageScore * 0.30) + (_conceptualSkills.AverageScore * 0.20);
+                return Math.Round(weightedScore, 2);
+            }
+        }
+        public string Ranking
+        {
+            get
+            {
+                double totalScore = CumulativeWeightage;
+                if (totalScore >= 5) return "A";
+                else if (totalScore >= 4) return "B";
+                else if (totalScore >= 3) return "C";
+                else if (totalScore >= 2) return "D";
+                else if (totalScore >= 1) return "E";
+                else return "F";
+            }
+        }
+    }
+}

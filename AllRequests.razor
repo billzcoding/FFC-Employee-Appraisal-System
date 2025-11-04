@@ -1,0 +1,80 @@
+﻿@page "/all-requests"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using AppraisalAppV1.Models
+@using AppraisalAppV1.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppraisalContext> DbFactory
+@inject NavigationManager Nav
+
+
+@if (appraisals == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!appraisals.Any())
+{
+    <p>You have no requests at this time.</p>
+}
+else
+{
+    <div class="table-card">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Appraisee Number</th>
+                    <th>Appraisal Year</th>
+                    <th>Submitted By</th>
+                    <th>Request Date</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var appraisal in appraisals)
+                {
+                    <tr>
+                        <td>@appraisal.Id</td>
+                        <td>@appraisal.AppraiseeNumber</td>
+                        <td>@appraisal.AppraisalYear</td>
+                        <td>@appraisal.Submitter?.FullName</td>
+                        <td>@appraisal.RequestDate</td>
+                        <td>
+                            <span class="badge @(appraisal.ApprovalStatus?.Status == ApprovalStatusEnum.Completed ? "bg-success" : "bg-warning")">
+                                @appraisal.ApprovalStatus?.Status.ToString()
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-info btn-sm" @onclick="() => ViewDetails(appraisal.Id)">View</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Appraisal>? appraisals;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAppraisals();
+    }
+
+    private async Task LoadAppraisals()
+    {
+        await using var dbContext = DbFactory.CreateDbContext();
+        appraisals = await dbContext.Appraisals
+            .Include(a => a.Submitter)
+            .Include(a => a.ApprovalStatus)
+            .ToListAsync();
+    }
+
+    private void ViewDetails(int appraisalId)
+    {
+        Nav.NavigateTo($"/view-request/{appraisalId}");
+    }
+}

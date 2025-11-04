@@ -1,0 +1,123 @@
+﻿@page "/my-actions"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using AppraisalAppV1.Models
+@using AppraisalAppV1.Data
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IDbContextFactory<AppraisalContext> DbFactory
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+@implements IDisposable
+
+<div class="page-container">
+ 
+    <div class="table-card">
+        @if (appraisals == null)
+        {
+            <p><em>Loading your assigned requests...</em></p>
+        }
+        else if (!appraisals.Any())
+        {
+            <p>You have no pending actions at this time.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Appraisee Number</th>
+                        <th>Appraisal Year</th>
+                        <th>Submitted By</th>
+                        <th>Your Task</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var appraisal in appraisals)
+                    {
+                        var userAssignment = appraisal.AppraisalAssignments
+                        .FirstOrDefault(aa => aa.UserId == currentUserId);
+
+                        <tr>
+                            <td>@appraisal.Id</td>
+                            <td>@appraisal.AppraiseeNumber</td>
+                            <td>@appraisal.AppraisalYear</td>
+                            <td>@appraisal.Submitter?.FullName</td>
+                            <td>@(userAssignment?.TaskAssigned ?? "N/A")</td>
+                            <td>
+                                <span class="badge @(userAssignment?.Status == AppraisalTaskStatus.Completed ? "bg-success" : "bg-warning")">
+                                    @(userAssignment?.Status.ToString() ?? "N/A")
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-info btn-sm" @onclick="() => ViewDetails(appraisal.Id)">View</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    private List<Appraisal>? appraisals;
+    private int currentUserId;
+    private string? currentUsername;
+    private ClaimsPrincipal? loggedInUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        loggedInUser = authState.User;
+        currentUsername = loggedInUser?.Identity?.Name;
+
+        await using var dbContext = DbFactory.CreateDbContext();
+
+        // Get the real DB User.Id from the username that ViewRequest uses
+        currentUserId = await dbContext.Users
+            .Where(u => u.Username == currentUsername)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync();
+
+        await LoadMyActions();
+    }
+
+    private async Task LoadMyActions()
+    {
+        if (currentUserId == 0)
+        {
+            appraisals = new List<Appraisal>();
+            return;
+        }
+
+        await using var dbContext = DbFactory.CreateDbContext();
+
+        appraisals = await dbContext.Appraisals
+            .Include(a => a.Submitter)
+            .Include(a => a.ApprovalStatus)
+            .Include(a => a.AppraisalAssignments!)
+                .ThenInclude(aa => aa.User)
+            .Where(a => a.ApprovalStatus != null
+                     && a.ApprovalStatus.Status == ApprovalStatusEnum.InProcess
+                     && a.ApprovalStatus.CurrentActionerUserId == currentUserId)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    private void ViewDetails(int appraisalId)
+    {
+        Nav.NavigateTo($"/view-request/{appraisalId}");
+    }
+
+    public void Dispose()
+    {
+        
+    }
+}

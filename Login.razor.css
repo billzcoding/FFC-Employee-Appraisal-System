@@ -1,0 +1,62 @@
+:host, .login-bg, .login-bg-img {
+    min-height: 100vh;
+    min-width: 100vw;
+    width: 100vw;
+    height: 100vh;
+    background: url('/ffc-image1.png') no-repeat center center fixed;
+    background-size: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.login-card, .login-box {
+    width: 100%;
+    max-width: 400px;
+    padding: 2.5rem;
+    border: 1px solid #CCD5F0;
+    border-radius: 1rem;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    background-color: #fff;
+    opacity: 0.98;
+}
+
+.login-title {
+    color: #22336C;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.02em;
+}
+
+.login-error {
+    background-color: #E0E7F5;
+    color: #22336C;
+    border: 1px solid #CCD5F0;
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.login-btn {
+    background-color: #22336C !important;
+    border-color: #22336C !important;
+    color: #fff !important;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.login-btn:hover {
+    background-color: #2d417a !important;
+    border-color: #2d417a !important;
+}
+
+.form-label {
+    color: #22336C;
+    font-weight: 500;
+}

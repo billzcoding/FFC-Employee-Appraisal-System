@@ -1,0 +1,38 @@
+﻿    @using Microsoft.AspNetCore.Components.Web
+    @using Microsoft.AspNetCore.Components.Routing
+    @using AppraisalAppV1.Components.Layout
+    @using AppraisalAppV1.Services
+    @using Microsoft.AspNetCore.Components.Authorization
+    @using System.Security.Claims
+    @using AppraisalAppV1.Components
+@using MudBlazor
+    @rendermode InteractiveServer
+
+    <CascadingAuthenticationState>
+        <CascadingValue Value="@sessionState" Name="SessionState">
+        <MudThemeProvider />
+        <MudDialogProvider />
+        <MudSnackbarProvider />
+        <MudPopoverProvider />
+        <Router AppAssembly="typeof(Program).Assembly">
+                <Found Context="routeData">
+                    <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
+                        <NotAuthorized>
+                            <RedirectToLogin />
+                        </NotAuthorized>
+                    </AuthorizeRouteView>
+                </Found>
+                <NotFound>
+                    <PageTitle>Not found</PageTitle>
+                    <LayoutView Layout="typeof(MainLayout)">
+                        <p role="alert">Sorry, there's nothing at this address.</p>
+                    </LayoutView>
+                </NotFound>
+            </Router>
+        </CascadingValue>
+    </CascadingAuthenticationState>
+
+    @code {
+        [Inject]
+        private SessionState sessionState { get; set; } = default!;
+    }

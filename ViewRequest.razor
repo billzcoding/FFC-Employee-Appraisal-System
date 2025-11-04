@@ -1,0 +1,489 @@
+﻿@page "/view-request/{appraisalId:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using AppraisalAppV1.Models
+@using AppraisalAppV1.Data
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.ComponentModel.DataAnnotations
+@using System.IO
+@inject IDbContextFactory<AppraisalContext> DbFactory
+@inject NavigationManager Nav
+@inject IJSRuntime JsRuntime
+@inject AuthenticationStateProvider AuthStateProvider
+
+@implements IDisposable
+
+<div class="app-container main-content">
+    <h3>Appraisal Request Details</h3>
+    <hr />
+
+    @if (appraisal == null)
+    {
+        <p><em>Loading appraisal details...</em></p>
+    }
+    else
+    {
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#appraisalDetailsCollapse" aria-expanded="true" aria-controls="appraisalDetailsCollapse" style="background-image: linear-gradient(90deg, #163e6c 0%, #25477a 70%, #5bc0ff 100%); color: white;">
+                <h5 class="mb-0">Appraisal Details</h5>
+                <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+            </div>
+            <div class="collapse show" id="appraisalDetailsCollapse">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Appraisee Number</label>
+                                <InputText @bind-Value="appraisal.AppraiseeNumber" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Submitted By</label>
+                                <InputText @bind-Value="appraisal.Submitter!.FullName" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Request Date</label>
+                                <InputText @bind-Value="appraisal.RequestDate" class="form-control" disabled />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Appraisal Year</label>
+                                <InputNumber @bind-Value="appraisal.AppraisalYear" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Employee Name</label>
+                                <InputText @bind-Value="appraisal.EmployeeName" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Designation</label>
+                                <InputText @bind-Value="appraisal.Designation" class="form-control" disabled />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#professionalSkillsCollapse" aria-expanded="false" aria-controls="professionalSkillsCollapse" style="background-image: linear-gradient(90deg, #163e6c 0%, #25477a 70%, #5bc0ff 100%); color: white;">
+                <h5 class="mb-0">Professional Skills</h5>
+                <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+            </div>
+            <div class="collapse" id="professionalSkillsCollapse">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Job Knowledge</label>
+                                <InputNumber @bind-Value="appraisal.JobKnowledge" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Quality of Work</label>
+                                <InputNumber @bind-Value="appraisal.QualityOfWork" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Creativity</label>
+                                <InputNumber @bind-Value="appraisal.Creativity" class="form-control" disabled />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Organizing Work</label>
+                                <InputNumber @bind-Value="appraisal.OrganizingWork" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Quantity of Work</label>
+                                <InputNumber @bind-Value="appraisal.QuantityOfWork" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Average Score (P)</label>
+                                <input type="number" class="form-control" value="@professionalSkillsAverage" disabled />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#humanSkillsCollapse" aria-expanded="false" aria-controls="humanSkillsCollapse" style="background-image: linear-gradient(90deg, #163e6c 0%, #25477a 70%, #5bc0ff 100%); color: white;">
+                <h5 class="mb-0">Human Skills</h5>
+                <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+            </div>
+            <div class="collapse" id="humanSkillsCollapse">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Relationship (Senior)</label>
+                                <InputNumber @bind-Value="appraisal.RelationshipSenior" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Working Under Pressure</label>
+                                <InputNumber @bind-Value="appraisal.WorkingUnderPressure" class="form-control" disabled />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Communication</label>
+                                <InputNumber @bind-Value="appraisal.Communication" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Average Score (H)</label>
+                                <input type="number" class="form-control" value="@humanSkillsAverage" disabled />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#conceptualSkillsCollapse" aria-expanded="false" aria-controls="conceptualSkillsCollapse" style="background-image: linear-gradient(90deg, #163e6c 0%, #25477a 70%, #5bc0ff 100%); color: white;">
+                <h5 class="mb-0">Conceptual Skills</h5>
+                <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+            </div>
+            <div class="collapse" id="conceptualSkillsCollapse">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Leadership</label>
+                                <InputNumber @bind-Value="appraisal.Leadership" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>New Ideas</label>
+                                <InputNumber @bind-Value="appraisal.NewIdeas" class="form-control" disabled />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Judgement</label>
+                                <InputNumber @bind-Value="appraisal.Judgement" class="form-control" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Average Score (C)</label>
+                                <input type="number" class="form-control" value="@conceptualSkillsAverage" disabled />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#overallRatingCollapse" aria-expanded="false" aria-controls="overallRatingCollapse" style="background-image: linear-gradient(90deg, #163e6c 0%, #25477a 70%, #5bc0ff 100%); color: white;">
+                <h5 class="mb-0">Overall Rating</h5>
+                <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+            </div>
+            <div class="collapse" id="overallRatingCollapse">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Cumulative Weightage</label>
+                                <InputNumber @bind-Value="appraisal.CumulativeWeightage" class="form-control" disabled />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Ranking</label>
+                                <InputText @bind-Value="appraisal.Ranking" class="form-control" disabled />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#trainingCommentsCollapse" aria-expanded="false" aria-controls="trainingCommentsCollapse" style="background-image: linear-gradient(90deg, #163e6c 0%, #25477a 70%, #5bc0ff 100%); color: white;">
+                <h5 class="mb-0">Training and Comments</h5>
+                <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+            </div>
+            <div class="collapse" id="trainingCommentsCollapse">
+                <div class="card-body">
+                    <div class="form-group">
+                        <label>Main Training Assignment</label>
+                        <InputTextArea @bind-Value="appraisal.MainTrainingAssignment" class="form-control" disabled />
+                    </div>
+                    <div class="form-group">
+                        <label>Training Planned</label>
+                        <InputTextArea @bind-Value="appraisal.TrainingPlanned" class="form-control" disabled />
+                    </div>
+                    <div class="form-group">
+                        <label>Comments</label>
+                        <InputTextArea @bind-Value="appraisal.Comments" class="form-control" disabled />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(appraisal.AttachmentFilePaths))
+        {
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#attachmentsCollapse" aria-expanded="false" aria-controls="attachmentsCollapse" style="background-image: linear-gradient(90deg, #163e6c 0%, #25477a 70%, #5bc0ff 100%); color: white;">
+                    <h5 class="mb-0">Attachments</h5>
+                    <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+                </div>
+                <div class="collapse" id="attachmentsCollapse">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Files</label>
+                            <div class="form-control disabled-input">
+                                @foreach (var filePath in appraisal.AttachmentFilePaths!.Split(';'))
+                                {
+                                    var fileName = System.IO.Path.GetFileName(filePath);
+                                    <a href="@($"AppraisalAttachments/{fileName}")" target="_blank">@fileName</a>
+
+                                    <br />
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#workflowCollapse" aria-expanded="false" aria-controls="workflowCollapse" style="background-image: linear-gradient(90deg, #163e6c 0%, #25477a 70%, #5bc0ff 100%); color: white;">
+                <h5 class="mb-0">Approval Workflow</h5>
+                <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+            </div>
+            <div class="collapse" id="workflowCollapse">
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Level</th>
+                                <th>Task</th>
+                                <th>User</th>
+                                <th>Status</th>
+                                <th>Comments</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var assignment in appraisal.AppraisalAssignments!.OrderBy(a => a.Id))
+                            {
+                                var isCurrent = appraisal.ApprovalStatus?.CurrentActionerUserId == assignment.UserId;
+                                <tr class="@(isCurrent ? "table-success" : "")">
+                                    <td>@(appraisal.AppraisalAssignments.IndexOf(assignment) + 1)</td>
+                                    <td>@assignment.TaskAssigned</td>
+                                    <td>@assignment.User?.FullName</td>
+                                    <td>
+                                        <span class="badge @(assignment.Status == AppraisalTaskStatus.Completed ? "bg-success" : "bg-info")">
+                                            @assignment.Status.ToString()
+                                        </span>
+                                    </td>
+                                    <td>@assignment.ReviewerComment</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        @if (IsCurrentUserTheActioner)
+        {
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#yourActionCollapse" aria-expanded="true" aria-controls="yourActionCollapse" style="background-image: linear-gradient(90deg, #163e6c 0%, #25477a 70%, #5bc0ff 100%); color: white;">
+                    <h5 class="mb-0">Your Action</h5>
+                    <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+                </div>
+                <div class="collapse show" id="yourActionCollapse">
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="comment">Your Comment:</label>
+                            <textarea @bind="reviewerComment" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            @if (currentAssignment?.TaskAssigned == "Review")
+                            {
+                                <button class="btn btn-danger me-2" @onclick="@(() => PerformAction("Return"))">Return</button>
+                                <button class="btn btn-warning" @onclick="@(() => PerformAction("Review"))">Review</button>
+                            }
+                            else if (currentAssignment?.TaskAssigned == "Approve")
+                            {
+                                <button class="btn btn-danger me-2" @onclick="@(() => PerformAction("Return"))">Return</button>
+                                <button class="btn btn-success" @onclick="@(() => PerformAction("Approve"))">Approve</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public int AppraisalId { get; set; }
+
+    private Appraisal? appraisal;
+    private User? currentActioner;
+    private ClaimsPrincipal? loggedInUser;
+    private string reviewerComment = string.Empty;
+    private bool IsCurrentUserTheActioner => loggedInUser != null && currentActioner != null && loggedInUser.Identity?.Name == currentActioner.Username;
+    private CancellationTokenSource cts = new();
+    private AppraisalAssignment? currentAssignment;
+
+
+    private double professionalSkillsAverage;
+    private double humanSkillsAverage;
+    private double conceptualSkillsAverage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        loggedInUser = authState.User;
+        await LoadAppraisalDetails();
+    }
+
+    private async Task LoadAppraisalDetails()
+    {
+        await using var dbContext = DbFactory.CreateDbContext();
+        var token = cts.Token;
+        try
+        {
+            appraisal = await dbContext.Appraisals
+                .Include(a => a.Submitter)
+                .Include(a => a.ApprovalStatus)
+                .Include(a => a.AppraisalAssignments!)
+                .ThenInclude(aa => aa.User)
+                .FirstOrDefaultAsync(a => a.Id == AppraisalId, token);
+        }
+        catch (OperationCanceledException) { }
+
+        if (appraisal != null)
+        {
+            professionalSkillsAverage = CalculateProfessionalSkillsAverage(appraisal);
+            humanSkillsAverage = CalculateHumanSkillsAverage(appraisal);
+            conceptualSkillsAverage = CalculateConceptualSkillsAverage(appraisal);
+
+            if (appraisal.ApprovalStatus != null && appraisal.ApprovalStatus.Status == ApprovalStatusEnum.InProcess)
+            {
+                currentActioner = appraisal.AppraisalAssignments
+                    .FirstOrDefault(aa => aa.UserId == appraisal.ApprovalStatus?.CurrentActionerUserId)?.User;
+                currentAssignment = appraisal.AppraisalAssignments
+                    .FirstOrDefault(aa => aa.UserId == appraisal.ApprovalStatus?.CurrentActionerUserId);
+
+            }
+        }
+    }
+
+    private double CalculateProfessionalSkillsAverage(Appraisal appraisal)
+    {
+        var scores = new double?[]
+        {
+            appraisal.JobKnowledge, appraisal.QualityOfWork, appraisal.Creativity,
+            appraisal.Initiative, appraisal.SelfDevelopment, appraisal.OrganizingWork,
+            appraisal.QuantityOfWork, appraisal.AnalyticalAbility, appraisal.Dependability
+        };
+        var validScores = scores.Where(s => s.HasValue).Select(s => s.Value).ToList();
+        return validScores.Any() ? Math.Round(validScores.Average(), 2) : 0;
+    }
+
+    private double CalculateHumanSkillsAverage(Appraisal appraisal)
+    {
+        var scores = new double?[]
+        {
+            appraisal.RelationshipSenior, appraisal.WorkingUnderPressure,
+            appraisal.Communication, appraisal.RelationshipJunior, appraisal.SafetyConsciousness
+        };
+        var validScores = scores.Where(s => s.HasValue).Select(s => s.Value).ToList();
+        return validScores.Any() ? Math.Round(validScores.Average(), 2) : 0;
+    }
+
+    private double CalculateConceptualSkillsAverage(Appraisal appraisal)
+    {
+        var scores = new double?[]
+        {
+            appraisal.Leadership, appraisal.NewIdeas, appraisal.Judgement,
+            appraisal.CompanyPhilosophy, appraisal.ProblemAnalysis
+        };
+        var validScores = scores.Where(s => s.HasValue).Select(s => s.Value).ToList();
+        return validScores.Any() ? Math.Round(validScores.Average(), 2) : 0;
+    }
+
+    private async Task PerformAction(string actionType)
+    {
+        if (appraisal == null || appraisal.ApprovalStatus == null || currentActioner == null) return;
+
+        await using var dbContext = DbFactory.CreateDbContext();
+
+        var assignmentToUpdate = await dbContext.AppraisalAssignments
+            .FirstOrDefaultAsync(aa => aa.AppraisalId == appraisal.Id && aa.UserId == currentActioner.Id);
+
+        var approvalStatusToUpdate = await dbContext.ApprovalStatus
+            .FirstOrDefaultAsync(s => s.Id == appraisal.ApprovalStatusId);
+
+        if (assignmentToUpdate != null && approvalStatusToUpdate != null)
+        {
+            if (actionType == "Return")
+            {
+                assignmentToUpdate.Status = AppraisalTaskStatus.Pending;
+                assignmentToUpdate.ReviewerComment = reviewerComment;
+
+                // Find the previous assignment
+                var orderedAssignments = await dbContext.AppraisalAssignments
+                    .Where(aa => aa.AppraisalId == appraisal.Id)
+                    .OrderBy(aa => aa.Id)
+                    .ToListAsync();
+
+                var currentIndex = orderedAssignments.FindIndex(a => a.UserId == currentActioner.Id);
+                if (currentIndex > 0)
+                {
+                    approvalStatusToUpdate.CurrentActionerUserId = orderedAssignments[currentIndex - 1].UserId;
+                    approvalStatusToUpdate.CurrentStage = currentIndex; // step back
+                }
+                else
+                {
+                    // If first actioner, send back to submitter
+                    approvalStatusToUpdate.CurrentActionerUserId = appraisal.SubmitterId;
+                    approvalStatusToUpdate.CurrentStage = 0;
+                }
+            }
+
+            else // Review or Approve
+            {
+                assignmentToUpdate.Status = AppraisalTaskStatus.Completed;
+                assignmentToUpdate.ReviewerComment = reviewerComment;
+
+                approvalStatusToUpdate.CurrentStage++;
+
+                // Get all assignments in order
+                var orderedAssignments = await dbContext.AppraisalAssignments
+                    .Where(aa => aa.AppraisalId == appraisal.Id)
+                    .OrderBy(aa => aa.Id)
+                    .ToListAsync();
+
+                if (approvalStatusToUpdate.CurrentStage > orderedAssignments.Count)
+                {
+                    // Workflow completed
+                    approvalStatusToUpdate.Status = ApprovalStatusEnum.Completed;
+                    approvalStatusToUpdate.CurrentActionerUserId = null;
+                }
+                else
+                {
+                    // Move to the next assignment in order
+                    var nextAssignment = orderedAssignments[approvalStatusToUpdate.CurrentStage - 1];
+                    approvalStatusToUpdate.CurrentActionerUserId = nextAssignment.UserId;
+                }
+            }
+
+
+            await dbContext.SaveChangesAsync();
+            await JsRuntime.InvokeVoidAsync("alert", $"Appraisal {appraisal.AppraiseeNumber} has been {actionType}d.");
+            Nav.NavigateTo("/my-actions");
+        }
+    }
+
+    public void Dispose()
+    {
+        cts.Cancel();
+        cts.Dispose();
+    }
+}
